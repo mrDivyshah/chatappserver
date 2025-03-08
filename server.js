@@ -1,4 +1,3 @@
-
 require("dotenv").config();
 const express = require("express");
 const http = require("http");
@@ -14,12 +13,14 @@ const server = http.createServer(app);
 const io = socketIo(server, { cors: { origin: "*" } });
 
 // Middleware
-app.use(cors());
+app.use(cors({ origin: "*", credentials: true }));
 app.use(express.json());
 
 // MongoDB Connection
-const mongoURI = "mongodb+srv://semple2266:Divy123@cluster0.ogl5m.mongodb.net/chatApp";
-mongoose.connect(mongoURI, { useNewUrlParser: true, useUnifiedTopology: true })
+const mongoURI =
+  "mongodb+srv://semple2266:Divy123@cluster0.ogl5m.mongodb.net/chatApp";
+mongoose
+  .connect(mongoURI, { useNewUrlParser: true, useUnifiedTopology: true })
   .then(() => console.log("✅ Connected to MongoDB Atlas"))
   .catch((err) => console.error("❌ MongoDB Connection Error:", err));
 
@@ -40,7 +41,6 @@ const Message = mongoose.model("Message", messageSchema);
 
 const onlineUsers = new Map();
 
-
 app.get("/", (req, res) => {
   res.send("Hello from Node.js on Vercel!");
 });
@@ -59,7 +59,9 @@ app.get("/messages/:uuid", async (req, res) => {
   try {
     const messages = await Message.find({
       $or: [{ senderUUID: req.params.uuid }, { receiverUUID: req.params.uuid }],
-    }).sort({ timestamp: -1 }).limit(50);
+    })
+      .sort({ timestamp: -1 })
+      .limit(50);
     res.json(messages);
   } catch (err) {
     res.status(500).json({ error: "Internal Server Error" });
@@ -72,7 +74,9 @@ app.get("/online-users", (req, res) => {
   take = parseInt(take);
   let usersArray = Array.from(onlineUsers.values());
   if (search) {
-    usersArray = usersArray.filter((user) => user.username.toLowerCase().includes(search.toLowerCase()));
+    usersArray = usersArray.filter((user) =>
+      user.username.toLowerCase().includes(search.toLowerCase())
+    );
   }
   const paginatedUsers = usersArray.slice(skip, skip + take);
   res.json({ total: usersArray.length, users: paginatedUsers });
@@ -106,7 +110,10 @@ io.on("connection", (socket) => {
     try {
       const newMessage = new Message(data);
       await newMessage.save();
-      io.to(data.receiverUUID).emit("receiveMessage", { ...data, timestamp: new Date() });
+      io.to(data.receiverUUID).emit("receiveMessage", {
+        ...data,
+        timestamp: new Date(),
+      });
     } catch (err) {
       console.error("Error saving message:", err);
     }
@@ -136,7 +143,9 @@ io.on("connection", (socket) => {
 // Delete messages older than 24 hours every hour
 setInterval(async () => {
   try {
-    const result = await Message.deleteMany({ timestamp: { $lt: new Date(Date.now() - 24 * 60 * 60 * 1000) } });
+    const result = await Message.deleteMany({
+      timestamp: { $lt: new Date(Date.now() - 24 * 60 * 60 * 1000) },
+    });
     console.log(`🕒 Deleted ${result.deletedCount} old messages`);
   } catch (err) {
     console.error("Error deleting old messages:", err);
